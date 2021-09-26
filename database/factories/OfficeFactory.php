@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Office;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class OfficeFactory extends Factory
