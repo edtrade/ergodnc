@@ -24,3 +24,5 @@ Route::get('/tags', TagController::class);
 
 // Offices...
 Route::get('/offices', [OfficeController::class, 'index']);
+
+Route::get('/offices/{office}', [OfficeController::class, 'show']);
