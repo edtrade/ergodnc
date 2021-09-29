@@ -27,6 +27,14 @@ class Office extends Model
         'monthly_discount' => 'integer',
     ];    
 
+    // protected static function booted()
+    // {
+    //     static::creating(function ($office) {
+    //         //
+    //         $office->approval_status = self::APPROVAL_PENDING;
+    //     });
+    // } 
+
     //Relationships
     public function user(): BelongsTo
     {

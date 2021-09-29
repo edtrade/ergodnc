@@ -7,10 +7,14 @@ use Illuminate\Http\Response;
 use App\Models\Office;
 use App\Models\Reservation;
 use App\Http\Resources\OfficeResource;
+use Illuminate\Http\Resources\Json\JsonResource;
+use App\Http\Requests\Office\CreateRequest;
+use Illuminate\Support\Arr;
+
 class OfficeController extends Controller
 {
     //
-    public function index(Request $request)
+    public function index(Request $request):JsonResource
     {
         $offices = Office::query()
             ->where('approval_status',Office::APPROVAL_APPROVED)
@@ -41,7 +45,7 @@ class OfficeController extends Controller
     }
 
     //
-    public function show(Office $office)
+    public function show(Office $office):JsonResource
     {
         $office->loadCount([
             'reservations' => function($builder){
@@ -52,4 +56,20 @@ class OfficeController extends Controller
 
         return OfficeResource::make($office);
     }
+
+    //
+    public function create(CreateRequest $request):JsonResource
+    {
+        abort_unless(auth()->user()->tokenCan('office.create'),
+            Response::HTTP_FORBIDDEN
+        );
+
+        $office = auth()->user()->offices()->create(Arr::except($request->validated(),['tags']));
+
+        $office->tags()->sync($request->tags);
+
+        return OfficeResource::make($office);
+
+    }
+
 }

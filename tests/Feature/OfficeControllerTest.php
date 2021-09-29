@@ -13,7 +13,7 @@ use App\Models\Image;
 
 class OfficeControllerTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase, WithFaker;
     /**
      * A basic feature test example.
      * @test
@@ -192,12 +192,13 @@ class OfficeControllerTest extends TestCase
         $response->assertOk();
         $this->assertEquals($office2->title,$response->json('data')[0]['title']);
      }
+
     /**
      * A basic feature test example.
      * @test
      * @return void
      */  
-     public function itShowAOffice()
+     public function itShowAnOffice()
      {
         $office = Office::factory()->create();
 
@@ -223,5 +224,66 @@ class OfficeControllerTest extends TestCase
          $this->assertIsArray($response->json('data')['tags']);
          $this->assertIsArray($response->json('data')['images']);        
 
-     }                  
+     }  
+
+    /**
+     * A basic feature test example.
+     * @test
+     * @return void
+     */  
+     public function itCreatesAnOffice()
+     {
+        $user = User::factory()->create();
+
+        $tag = Tag::factory()->create();
+
+        $tag2 = Tag::factory()->create();
+
+        $this->actingAs($user);
+
+        $response = $this->postJson('/api/offices',[
+            'title'=> $title = $this->faker->sentence,
+            'description'=>$this->faker->paragraph,
+            'lat'=>$this->faker->latitude,
+            'lng'=>$this->faker->longitude,
+            'address_line1'=>$this->faker->address,
+            'price_per_day'=>$this->faker->numberBetween(1_000, 8_000),
+            'tags'=>[$tag->id, $tag2->id]
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.title',$title);
+            //->assertJsonCount(2,'data.tags');
+        $this->assertDatabaseHas('offices',[
+            'title'=>$title
+        ]);    
+     }             
+
+    /**
+     * A basic feature test example.
+     * @test
+     * @return void
+     */  
+     public function itDoesntAllowCreatingAnOfficeIfScopeNotProvided()
+     {
+        $user = User::factory()->create();
+
+        $token = $user->createToken('test',[]);
+
+        $response = $this->postJson('/api/offices',
+            [
+                'title'=> $title = $this->faker->sentence,
+                'description'=>$this->faker->paragraph,
+                'lat'=>$this->faker->latitude,
+                'lng'=>$this->faker->longitude,
+                'address_line1'=>$this->faker->address,
+                'price_per_day'=>$this->faker->numberBetween(1_000, 8_000)
+            ],
+            [
+                'Authorization' => 'Bearer '.$token->plainTextToken
+            ]
+        );
+
+        $response->assertStatus(403);   
+     }   
 }

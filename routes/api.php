@@ -23,6 +23,9 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::get('/tags', TagController::class);
 
 // Offices...
-Route::get('/offices', [OfficeController::class, 'index']);
-
-Route::get('/offices/{office}', [OfficeController::class, 'show']);
+Route::get('/offices', [OfficeController::class, 'index'])->name('office.index');
+Route::post('/offices', [OfficeController::class, 'create'])
+    ->middleware(['auth:sanctum','verified'])
+    ->name('office.create');
+Route::get('/offices/{office}', [OfficeController::class, 'show'])->name('office.show');
+    
