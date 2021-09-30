@@ -10,6 +10,8 @@ use App\Models\User;
 use App\Models\Reservation;
 use App\Models\Tag;
 use App\Models\Image;
+use Illuminate\Support\Facades\Notification;
+use App\Notifications\OfficePendingApprovalNotification;
 
 class OfficeControllerTest extends TestCase
 {
@@ -233,11 +235,17 @@ class OfficeControllerTest extends TestCase
      */  
      public function itCreatesAnOffice()
      {
+        $admin = User::factory()->create([
+            'email'=>'admin@admin.com'
+        ]);
+                
         $user = User::factory()->create();
 
         $tag = Tag::factory()->create();
 
         $tag2 = Tag::factory()->create();
+
+        Notification::fake();
 
         $this->actingAs($user);
 
@@ -257,6 +265,8 @@ class OfficeControllerTest extends TestCase
         $this->assertDatabaseHas('offices',[
             'title'=>$title
         ]);    
+
+        Notification::assertSentTo([$admin], OfficePendingApprovalNotification::class);
      }             
 
     /**
@@ -285,5 +295,136 @@ class OfficeControllerTest extends TestCase
         );
 
         $response->assertStatus(403);   
+     }  
+    /**
+     * A basic feature test example.
+     * @test
+     * @return void
+     */  
+     public function itUpdatesAnOffice()
+     {
+        $user = User::factory()->create();
+
+        $tags = Tag::factory(3)->create();
+
+        $anotherTag = Tag::factory()->create();
+
+        $office = Office::factory()->for($user)->create();
+
+        $office->tags()->attach($tags);
+
+        $this->actingAs($user);
+
+        $response = $this->putJson('/api/offices/'.$office->id,[
+            'title'=> $title = $this->faker->sentence,
+            'description'=>$this->faker->paragraph,
+            'tags'=>[$tags[0]->id, $anotherTag->id]
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.title',$title)
+            ->assertJsonPath('data.tags.0.id',$tags[0]->id)
+            ->assertJsonPath('data.tags.1.id',$anotherTag->id);
+        $this->assertDatabaseHas('offices',[
+            'title'=>$title
+        ]);    
+     }       
+    /**
+     * A basic feature test example.
+     * @test
+     * @return void
+     */  
+     public function itDosentUpdatesAnOfficeThatDoesntBelongToUser()
+     {
+        $user = User::factory()->create();
+
+        $anotherUser = User::factory()->create();
+
+        $office = Office::factory()->for($user)->create();
+
+        $this->actingAs($anotherUser);
+
+        $response = $this->putJson('/api/offices/'.$office->id,[
+            'title'=> $title = $this->faker->sentence,
+            'description'=>$this->faker->paragraph
+        ]);
+
+        $response->assertStatus(403);   
      }   
+
+    /**
+     * A basic feature test example.
+     * @test
+     * @return void
+     */  
+     public function itMarksOfficeAsPendingWhenDirty()
+     {
+        $admin = User::factory()->create([
+            'email'=>'admin@admin.com'
+        ]);
+
+        Notification::fake();
+
+        $user = User::factory()->create();
+
+        $office = Office::factory()->for($user)->create();
+
+        $this->actingAs($user);
+
+        $response = $this->putJson('/api/offices/'.$office->id,[
+            'lat'=>$this->faker->latitude
+        ]);
+
+        $response->assertOK();
+        $response->assertJsonPath('data.approval_status',Office::APPROVAL_PENDING);   
+
+        Notification::assertSentTo([$admin], OfficePendingApprovalNotification::class);
+     }  
+
+    /**
+     * A basic feature test example.
+     * @test
+     * @return void
+     */  
+     public function itCanDeleteOffices()
+     {
+
+        $user = User::factory()->create();
+
+        $office = Office::factory()->for($user)->create();
+
+        $this->actingAs($user);
+
+        $response = $this->delete('/api/offices/'.$office->id);
+
+        $response->assertOK();
+
+        $this->assertSoftDeleted($office);
+     }
+
+    /**
+     * A basic feature test example.
+     * @test
+     * @return void
+     */  
+     public function itCannotDeleteOfficesThatHasReservations()
+     {
+
+        $user = User::factory()->create();
+
+        $office = Office::factory()->for($user)->create();
+
+        $reservations = Reservation::factory(3)->for($office)->create();
+
+        $this->actingAs($user);
+
+        $response = $this->deleteJson('/api/offices/'.$office->id);
+
+        $response->assertUnprocessable();
+
+        $this->assertDatabaseHas($office,[
+            'id'=>$office->id,
+            'deleted_at'=>null
+        ]);
+     }           
 }

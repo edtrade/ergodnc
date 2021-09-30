@@ -24,8 +24,14 @@ Route::get('/tags', TagController::class);
 
 // Offices...
 Route::get('/offices', [OfficeController::class, 'index'])->name('office.index');
+Route::get('/offices/{office}', [OfficeController::class, 'show'])->name('office.show');
 Route::post('/offices', [OfficeController::class, 'create'])
     ->middleware(['auth:sanctum','verified'])
     ->name('office.create');
-Route::get('/offices/{office}', [OfficeController::class, 'show'])->name('office.show');
+Route::put('/offices/{office}', [OfficeController::class, 'update'])
+    ->middleware(['auth:sanctum','verified'])
+    ->name('office.update');    
+Route::delete('/offices/{office}', [OfficeController::class, 'delete'])
+    ->middleware(['auth:sanctum','verified'])
+    ->name('office.delete');        
     
