@@ -16,6 +16,7 @@ use DB;
 use Illuminate\Support\Facades\Notification;
 use App\Notifications\OfficePendingApprovalNotification;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Storage;
 
 class OfficeController extends Controller
 {
@@ -23,7 +24,7 @@ class OfficeController extends Controller
     public function index(Request $request):JsonResource
     {
         $offices = Office::query()
-            ->when(request('user_id') && auth()->user() && request('user_id') == auth()->id(),
+            ->when(request('user_id') && auth()->guard('sanctum')->user() && request('user_id') == auth()->id(),
                 function($builder){
                     return $builder;
                 },
@@ -132,6 +133,11 @@ class OfficeController extends Controller
 
         throw_if($office->reservations()->where('status',Reservation::STATUS_ACTIVE)->exists(),
             ValidationException::withMessages(["office" => "Cannot delete active office"]));
+
+        $office->images()->each(function($image){
+            Storage::delete($image->path);
+            $image->delete();
+        });
 
         $office->delete();
     }

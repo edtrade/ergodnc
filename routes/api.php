@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\OfficeController;
 use App\Http\Controllers\OfficeImageController;
+use App\Http\Controllers\UserReservationController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -19,6 +20,7 @@ use App\Http\Controllers\OfficeImageController;
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
+
 
 // Tags...
 Route::get('/tags', TagController::class);
@@ -40,14 +42,22 @@ Route::put('/offices/{office}', [OfficeController::class, 'update'])
 
 Route::delete('/offices/{office}', [OfficeController::class, 'delete'])
     ->middleware(['auth:sanctum','verified'])
-    ->name('office.delete');       
+    ->name('office.delete');   
+
 
 //Office Images
 Route::post('/offices/{office}/images', [OfficeImageController::class, 'store']) 
     ->middleware(['auth:sanctum','verified'])
     ->name('office.images.store');     
 
-Route::delete('/offices/{office}/images/{image}', [OfficeImageController::class, 'delete']) 
+Route::delete('/offices/{office}/images/{image:id}', [OfficeImageController::class, 'delete']) 
     ->middleware(['auth:sanctum','verified'])
     ->name('office.images.delete');           
-    
+
+Route::get('/reservations',[UserReservationController::class,'index'])
+    ->middleware(['auth:sanctum','verified'])
+    ->name('reservations.user.index');   
+
+Route::get('/host/reservations',[HostReservationController::class,'index'])
+    ->middleware(['auth:sanctum','verified'])
+    ->name('reservations.host.index');       

@@ -10,6 +10,7 @@ use App\Models\Office;
 use App\Models\Image;
 use App\Http\Resources\ImageResource;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Storage;
 
 class OfficeImageController extends Controller
 {
@@ -17,7 +18,7 @@ class OfficeImageController extends Controller
 
     public function store(ImageStoreRequest $request, Office $office): JsonResource
     {
-        $path = $request->file('image')->storePublicly('/',['disk'=>'public']);
+        $path = $request->file('image')->storePublicly('/');
 
         $image = $office->images()->create([
             'path'=>$path
@@ -35,11 +36,13 @@ class OfficeImageController extends Controller
 
         $this->authorize('delete', $office);
 
-        throw_if($image->resource_type != 'office' || $image->resource_id != $office->id ,
+        throw_if($image->resource_type != 'office' ,//|| $image->resource_id != $office->id
             ValidationException::withMessages(["image" => "Cannot delete this image"]));
 
         throw_if($office->images()->count()==1,
             ValidationException::withMessages(["image" => "Cannot delete the only image"]));
+
+        Storage::delete($image->path);
 
         $image->delete();        
     }
