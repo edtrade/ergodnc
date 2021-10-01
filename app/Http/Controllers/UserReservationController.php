@@ -6,11 +6,12 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use App\Models\Reservation;
 use App\Http\Resources\ReservationResource;
+use App\Http\Requests\Reservation\ReservationIndexRequest;
 
 class UserReservationController extends Controller
 {
     //
-    public function index()
+    public function index(eservationIndexRequest $request)
     {
         abort_unless(auth()->user()->tokenCan('reservations.show'), Response::HTTP_FORBIDDEN);
 
@@ -23,8 +24,11 @@ class UserReservationController extends Controller
                         $builder->where('status',request('status'));  
                     })               
                     ->when(request('from_date') && request('to_date'),function($builder){
-                        $builder->whereBetween('start_date',[request('from_date'), request('to_date')])
-                            ->orWhereBetween('end_date',[request('from_date'), request('to_date')]);
+                        //group conditions
+                        $builder->where(function($builder){
+                            return $builder->whereBetween('start_date',[request('from_date'), request('to_date')])
+                                ->orWhereBetween('end_date',[request('from_date'), request('to_date')]);
+                        });
                     })   
                     ->with(['office.featuredImage'])
                     ->paginate(20);
