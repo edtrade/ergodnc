@@ -328,7 +328,68 @@ class OfficeControllerTest extends TestCase
         $this->assertDatabaseHas('offices',[
             'title'=>$title
         ]);    
+     }
+
+    /**
+     * A basic feature test example.
+     * @test
+     * @return void
+     */  
+     public function itUpdatesFeaturedImageOfAnOffice()
+     {
+        $user = User::factory()->create();
+
+        $office = Office::factory()->for($user)->create();
+
+        $image = $office->images()->create([
+            'path'=>'sum_image.jpg'
+        ]);
+
+        $this->actingAs($user);
+
+        $response = $this->putJson('/api/offices/'.$office->id,[
+            'title'=> $title = $this->faker->sentence,
+            'description'=>$this->faker->paragraph,
+            'featured_image_id'=>$image->id
+        ]);
+
+        //
+        $response->assertOk()
+            ->assertJsonPath('data.title',$title)
+            ->assertJsonPath('data.featured_image_id',$image->id);
+        //    
+        $this->assertDatabaseHas('offices',[
+            'title'=>$title
+        ]);    
+     }  
+    /**
+     * A basic feature test example.
+     * @test
+     * @return void
+     */  
+     public function itDoesntUpdatesFeaturedImageOfAnotherOffice()
+     {
+        $user = User::factory()->create();
+
+        $office = Office::factory()->for($user)->create();
+
+        $office2 = Office::factory()->for($user)->create();
+
+        $image = $office2->images()->create([
+            'path'=>'sum_image.jpg'
+        ]);
+
+
+        $this->actingAs($user);
+
+        $response = $this->putJson('/api/offices/'.$office->id,[
+            'featured_image_id'=>$image->id
+        ]);
+
+        //
+        $response->assertStatus(422);    
      }       
+
     /**
      * A basic feature test example.
      * @test
@@ -360,7 +421,7 @@ class OfficeControllerTest extends TestCase
      public function itMarksOfficeAsPendingWhenDirty()
      {
         $admin = User::factory()->create([
-            'email'=>'admin@admin.com'
+            'is_admin'=>true
         ]);
 
         Notification::fake();
@@ -426,5 +487,29 @@ class OfficeControllerTest extends TestCase
             'id'=>$office->id,
             'deleted_at'=>null
         ]);
-     }           
+     } 
+
+    /**
+     * A basic feature test example.
+     * @test
+     * @return void
+     */
+     public function itListsOfficesIncludesHiddenAndUnapprovedForCurrentUser()
+     {
+        $user = User::factory()->create();
+
+        Office::factory(3)->for($user)->create();
+
+        Office::factory()->hidden()->for($user)->create();
+
+        Office::factory()->pending()->for($user)->create();
+
+        $this->actingAs($user);
+
+        $response = $this->get('/api/offices?user_id='.$user->id);
+
+        $response->assertOk();
+
+        $response->assertJsonCount(5,'data');
+     }                 
 }

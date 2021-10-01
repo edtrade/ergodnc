@@ -7,6 +7,7 @@ use Illuminate\Validation\Rule;
 
 class UpdateRequest extends FormRequest
 {
+    protected $office;
     /**
      * Determine if the user is authorized to make this request.
      *
@@ -16,6 +17,14 @@ class UpdateRequest extends FormRequest
     {
         return true;
     }
+
+    //override to inject request('office')
+    public function all($keys = null) 
+    {
+       $data = parent::all();
+       $this->office = $this->route('office');
+       return $data;
+    }    
 
     /**
      * Get the validation rules that apply to the request.
@@ -33,7 +42,12 @@ class UpdateRequest extends FormRequest
             'hidden' => ['boolean'],
             'price_per_day' => ['integer','sometimes', 'min:100'],
             'monthly_discount' => ['integer', 'min:100'],
-
+            'featured_image_id' => [
+                'integer',
+                Rule::exists('images','id')
+                    ->where('resource_type','office')
+                    ->where('resource_id',$this->office->id)
+            ],
             'tags'=>['array'],
             'tags.*' => ['integer',Rule::exists('tags','id')]
         ];

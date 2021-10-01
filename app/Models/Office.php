@@ -66,4 +66,9 @@ class Office extends Model
             )
             ->orderBy('distance');
     }
+
+    public function featuredImage(): BelongsTo
+    {
+        return $this->belongsTo(Image::class,'featured_image_id');
+    }
 }

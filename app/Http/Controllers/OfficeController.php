@@ -23,8 +23,15 @@ class OfficeController extends Controller
     public function index(Request $request):JsonResource
     {
         $offices = Office::query()
-            ->where('approval_status',Office::APPROVAL_APPROVED)
-            ->where('hidden',false)
+            ->when(request('user_id') && auth()->user() && request('user_id') == auth()->id(),
+                function($builder){
+                    return $builder;
+                },
+                function($builder){
+                    return $builder->where('approval_status', Office::APPROVAL_APPROVED)
+                        ->where('hidden',false);
+                }
+            )
             ->when(request('user_id'),function($builder){
                 $builder->where('user_id',request('user_id'));
             })
@@ -107,7 +114,7 @@ class OfficeController extends Controller
         });
 
         if($requiresReview){
-            Notification::send(User::where('email','admin@admin.com')->first(), 
+            Notification::send(User::where('is_admin',true)->get(), 
                 new OfficePendingApprovalNotification($office));
         }
 
