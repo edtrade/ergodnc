@@ -140,4 +140,150 @@ class UserReservationControllerTest extends TestCase
             ->assertJsonCount(2,'data')
             ->assertJsonPath('data.0.office.id',$office->id);                  
     }    
+
+    /**
+     * A basic feature test example.
+     * @test
+     * @return void
+     */
+    public function itMakesReservations()
+    {
+        $user = User::factory()->create();
+
+        $office = Office::factory()->create([
+            'price_per_day'=>1000,
+            'monthly_discount'=> 10
+        ]);
+
+        $this->actingAs($user);
+
+        $response = $this->postJson('/api/reservations',[
+            'office_id'=>$office->id,
+            'start_date'=>now()->addDays(2),
+            'end_date'=>now()->addDays(41)
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.price',36000)
+            ->assertJsonPath('data.status',Reservation::STATUS_ACTIVE)
+            ->assertJsonPath('data.user_id',$user->id)
+            ->assertJsonPath('data.office_id',$office->id);
+
+
+    }
+
+    /**
+     * A basic feature test example.
+     * @test
+     * @return void
+     */
+    public function itCannotMakeReservationOnNonExistantOffice()
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user);
+
+        $response = $this->postJson('/api/reservations',[
+            'office_id'=>1000001,
+            'start_date'=>now()->addDays(2),
+            'end_date'=>now()->addDays(41)
+        ]);      
+
+        $response->assertStatus(422);
+    }
+
+    /**
+     * A basic feature test example.
+     * @test
+     * @return void
+     */
+    public function itCannotMakeReservationOnOfficeThatBelongsToHimself()
+    {
+        $user = User::factory()->create();
+
+        $office = Office::factory()->for($user)->create();
+
+        $this->actingAs($user);
+
+        $response = $this->postJson('/api/reservations',[
+            'office_id'=>$office->id,
+            'start_date'=>now()->addDays(2),
+            'end_date'=>now()->addDays(41)
+        ]);  
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(["office_id" => "Cannot make reservation on your own office"]);
+    }    
+
+    /**
+     * A basic feature test example.
+     * @test
+     * @return void
+     */
+    public function itCannotMakeReservationsForLessThan2Days()
+    {
+        $user = User::factory()->create();
+
+        $office = Office::factory()->create();
+
+        $this->actingAs($user);
+
+        $response = $this->postJson('/api/reservations',[
+            'office_id'=>$office->id,
+            'start_date'=>now()->addDays(2),
+            'end_date'=>now()->addDays(2)
+        ]);  
+
+        $response->assertStatus(422);        
+    }
+
+    /**
+     * A basic feature test example.
+     * @test
+     * @return void
+     */
+    public function itCanMakeReservationsForMoreThan2Days()
+    {
+        $user = User::factory()->create();
+
+        $office = Office::factory()->create();
+
+        $this->actingAs($user);
+
+        $response = $this->postJson('/api/reservations',[
+            'office_id'=>$office->id,
+            'start_date'=>now()->addDays(2),
+            'end_date'=>now()->addDays(3)
+        ]);  
+
+        $response->assertCreated();        
+    }  
+
+    /**
+     * A basic feature test example.
+     * @test
+     * @return void
+     */    
+    public function itCannotMakeAReservationOnAlreadyReservedOffice()
+    {
+        $user = User::factory()->create();
+
+        $office = Office::factory()->create();
+
+        Reservation::factory()->for($office)->create([
+            'start_date'=>'2021-03-01',
+            'end_date'=>'2021-03-15'
+        ]);
+        
+        $this->actingAs($user);
+
+        $response = $this->postJson('/api/reservations',[
+            'office_id'=>$office->id,
+            'start_date'=>'2021-03-02',
+            'end_date'=>'2021-03-07'
+        ]);   
+
+        $response->assertStatus(422);   
+
+    }
 }
