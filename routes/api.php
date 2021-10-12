@@ -61,7 +61,11 @@ Route::get('/reservations',[UserReservationController::class,'index'])
 
 Route::post('/reservations',[UserReservationController::class,'create'])
     ->middleware(['auth:sanctum','verified'])
-    ->name('reservations.user.create');       
+    ->name('reservations.user.create');    
+
+Route::delete('/reservations/{reservation}',[UserReservationController::class,'cancel'])
+    ->middleware(['auth:sanctum','verified'])
+    ->name('reservations.user.cancel');           
 
 //Host Reservations
 Route::get('/host/reservations',[HostReservationController::class,'index'])

@@ -522,5 +522,29 @@ class OfficeControllerTest extends TestCase
         $response->assertOk();
 
         $response->assertJsonCount(5,'data');
-     }                 
+     }  
+
+    /**
+     * A basic feature test example.
+     * @test
+     * @return void
+     */
+     public function itFiltersByTags()
+     {
+        $tags = Tag::factory(2)->create();
+
+        $office = Office::factory()->hasAttached($tags)->create();
+
+        Office::factory()->hasAttached($tags->first())->create();
+
+        Office::factory()->create();
+
+        $response = $this->get('/api/offices?'.http_build_query([
+            'tags'=>$tags->pluck('id')->toArray()
+        ]));
+
+        $response->assertOk()
+            ->assertJsonCount(1,'data')
+            ->assertJsonPath('data.0.id',$office->id);
+     }                    
 }

@@ -13,6 +13,10 @@ use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Notification;
+use App\Notifications\NewReservationUserNotification;
+use App\Notifications\NewReservationHostNotification;
+use Illuminate\Support\Str;
 
 class UserReservationController extends Controller
 {
@@ -41,21 +45,25 @@ class UserReservationController extends Controller
     //
     public function create(UserStoreRequest $request): JsonResource
     {
-         abort_unless(auth()->user()->tokenCan('reservations.make'), Response::HTTP_FORBIDDEN);
+        abort_unless(auth()->user()->tokenCan('reservations.make'), Response::HTTP_FORBIDDEN);
 
-         $office = Office::findOrFail($request->office_id);
+        $office = Office::findOrFail($request->office_id);
 
-         throw_if(auth()->id() == $office->user_id, 
+        throw_if(auth()->id() == $office->user_id, 
             ValidationException::withMessages(["office_id" => "Cannot make reservation on your own office"]));
 
-         $reservation = Cache::lock('reservations_office_'.$office->id, 10)->block(3,function() use ($office,$request){
+        throw_if($office->hidden || $office->approval_status == Office::APPROVAL_PENDING, 
+            ValidationException::withMessages(["office_id" => "Cannot make reservation on this office"])); 
 
+        $reservation = Cache::lock('reservations_office_'.$office->id, 10)->block(3,function() use ($office,$request){
+
+            //
             $numberDays =  Carbon::parse($request->end_date)
                 ->endOfDay()
                 ->diffInDays(Carbon::parse($request->start_date)->startOfDay()) + 1;
 
-         throw_if($numberDays < 2, 
-            ValidationException::withMessages(["end_date" => "Cannot make a one day reservation on this office"]));                
+            throw_if($numberDays < 2, 
+                ValidationException::withMessages(["end_date" => "Cannot make a one day reservation on this office"]));                
 
             throw_if($office->reservations()->activeBetween($request->start_date,$request->end_date)->exists(),
                 ValidationException::withMessages(["office_id" => "Cannot make reservation during this time"]));
@@ -72,11 +80,33 @@ class UserReservationController extends Controller
                 'start_date'=>$request->start_date,
                 'end_date'=>$request->end_date,
                 'status'=> Reservation::STATUS_ACTIVE,
-                'price'=> $price
+                'price'=> $price,
+                'wifi_password'=>Str::random()
             ]);
 
-         });
+         });//Cache
 
-         return ReservationResource::make($reservation->load('office'));
+        Notification::send(auth()->user(),new NewReservationUserNotification($reservation));
+        Notification::send($office->user ,new NewReservationHostNotification($reservation));
+            
+
+        return ReservationResource::make($reservation->load('office'));
+    }
+
+    //
+    public function cancel(Reservation $reservation)
+    {
+        abort_unless(auth()->user()->tokenCan('reservations.cancel'), Response::HTTP_FORBIDDEN);
+
+        throw_if(auth()->id() != $reservation->user_id ||
+                $reservation->status != Reservation::STATUS_ACTIVE ||
+                $reservation->start_date < now()->toDateString(), 
+            ValidationException::withMessages(["reservation" => "Cannot cancel this reservation"]));   
+        
+        $reservation->update([
+            'status'=>Reservation::STATUS_CANCELLED
+        ]);
+
+        return ReservationResource::make($reservation->load('office'));
     }
 }

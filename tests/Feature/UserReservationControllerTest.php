@@ -8,6 +8,9 @@ use Tests\TestCase;
 use App\Models\Reservation;
 use App\Models\Office;
 use App\Models\User;
+use App\Notifications\NewReservationUserNotification;
+use App\Notifications\NewReservationHostNotification;
+use Illuminate\Support\Facades\Notification;
 
 class UserReservationControllerTest extends TestCase
 {
@@ -214,6 +217,44 @@ class UserReservationControllerTest extends TestCase
         $response->assertStatus(422)
             ->assertJsonValidationErrors(["office_id" => "Cannot make reservation on your own office"]);
     }    
+    /**
+     * A basic feature test example.
+     * @test
+     * @return void
+     */
+    public function itCannotMakeReservationOnOfficeThatIsPendingOrHidden()
+    {
+        $user = User::factory()->create();
+
+        $office = Office::factory()->create([
+            'hidden'=>true
+        ]);
+
+        $office2 = Office::factory()->create([
+            'approval_status'=>Office::APPROVAL_PENDING
+        ]);
+
+        $this->actingAs($user);
+
+        $response = $this->postJson('/api/reservations',[
+            'office_id'=>$office->id,
+            'start_date'=>now()->addDays(2),
+            'end_date'=>now()->addDays(41)
+        ]);  
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(["office_id" => "Cannot make reservation on this office"]);
+
+        //
+        $response2 = $this->postJson('/api/reservations',[
+            'office_id'=>$office2->id,
+            'start_date'=>now()->addDays(2),
+            'end_date'=>now()->addDays(41)
+        ]);  
+
+        $response2->assertStatus(422)
+            ->assertJsonValidationErrors(["office_id" => "Cannot make reservation on this office"]);            
+    }    
 
     /**
      * A basic feature test example.
@@ -263,6 +304,29 @@ class UserReservationControllerTest extends TestCase
      * A basic feature test example.
      * @test
      * @return void
+     */
+    public function itCannotMakeReservationsToday()
+    {
+        $user = User::factory()->create();
+
+        $office = Office::factory()->create();
+
+        $this->actingAs($user);
+
+        $response = $this->postJson('/api/reservations',[
+            'office_id'=>$office->id,
+            'start_date'=>now(),
+            'end_date'=>now()->addDays(3)
+        ]);  
+
+        //dump($response->json());
+
+       $response->assertStatus(422);           
+    }  
+    /**
+     * A basic feature test example.
+     * @test
+     * @return void
      */    
     public function itCannotMakeAReservationOnAlreadyReservedOffice()
     {
@@ -286,4 +350,32 @@ class UserReservationControllerTest extends TestCase
         $response->assertStatus(422);   
 
     }
+    /**
+     * A basic feature test example.
+     * @test
+     * @return void
+     */
+    public function itSendsNotificationOnNewReservations()
+    {
+        Notification::fake();
+
+        $user = User::factory()->create();
+
+        $office = Office::factory()->create();
+
+        $this->actingAs($user);
+
+        $response = $this->postJson('/api/reservations',[
+            'office_id'=>$office->id,
+            'start_date'=>now()->addDays(2),
+            'end_date'=>now()->addDays(3)
+        ]);  
+
+        Notification::assertSentTo($user, NewReservationUserNotification::class);
+
+        Notification::assertSentTo($office->user, NewReservationHostNotification::class);
+
+        $response->assertCreated();                
+    }
+
 }

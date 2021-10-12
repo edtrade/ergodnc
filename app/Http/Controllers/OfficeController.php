@@ -47,6 +47,16 @@ class OfficeController extends Controller
                     $builder->orderBy('id','ASC');
                 }
             ) 
+            ->when(request('tags'),function($builder){
+                $builder->whereHas(
+                    'tags',
+                    function($builder){
+                        $builder->whereIn('id',request('tags'));
+                    },
+                    '=',
+                    count(request('tags'))
+                );
+            })
             ->with(['images','tags','user'])
             ->withCount([
                 'reservations'=> function($builder){

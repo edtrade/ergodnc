@@ -6,23 +6,23 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use App\Models\Office;
+use App\Models\Reservation;
 
-class OfficePendingApprovalNotification extends Notification implements ShouldQueue
+class UserReservationStartingNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public $office;
 
+    public $reservation;
     /**
      * Create a new notification instance.
      *
      * @return void
      */
-    public function __construct(Office $office)
+    public function __construct(Reservation $reservation)
     {
         //
-        $this->office = $office;
+        $this->reservation = $reservation;
     }
 
     /**
