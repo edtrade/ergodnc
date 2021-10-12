@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Builder;
 
 class Office extends Model
 {
@@ -26,6 +27,14 @@ class Office extends Model
         'monthly_discount' => 'integer',
     ];    
 
+    // protected static function booted()
+    // {
+    //     static::creating(function ($office) {
+    //         //
+    //         $office->approval_status = self::APPROVAL_PENDING;
+    //     });
+    // } 
+
     //Relationships
     public function user(): BelongsTo
     {
@@ -42,4 +51,23 @@ class Office extends Model
         return $this->morphMany(Image::class, 'resource');
     }    
 
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(Tag::class,'offices_tags');
+    }
+
+    public function scopeNearestTo(Builder $builder, $lat, $lng)
+    {
+        return $builder
+            ->select()
+            ->orderByRaw(
+                'POW(69.1 * (lat - ?), 2) + POW(69.1 * (? - lng) * COS(lat / 57.3), 2)',
+                [$lat, $lng]
+            );
+    }
+
+    public function featuredImage(): BelongsTo
+    {
+        return $this->belongsTo(Image::class,'featured_image_id');
+    }
 }
